@@ -1,40 +1,42 @@
 // src/pages/DashboardPage.jsx
-import EmployeeDashboard from '../components/EmployeeDashboard';
-import ManagerDashboard from '../components/ManagerDashboard';
 
-function DashboardPage({ currentUser, onLogout }) {
+import AddExpenseForm from '../components/AddExpenseForm';
+import ExpenseList from '../components/ExpenseList';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+
+function DashboardPage() {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/signin');
+    };
+
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* Navigation Bar */}
-            <nav className="bg-white shadow-md">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-20">
-                        <div className="flex items-center">
-                            <span className="text-3xl font-bold text-blue-600">FinFlow</span>
-                        </div>
-                        <div className="flex items-center">
-                            <span className="mr-6 text-gray-700 font-medium">
-                                Welcome, <span className="font-bold">{currentUser.name}</span>!
-                            </span>
-                            <button
-                                onClick={onLogout}
-                                className="px-5 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-sm transition-colors"
-                            >
-                                Logout
-                            </button>
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-slate-50 p-4 sm:p-8">
+            <header className="max-w-5xl mx-auto mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-4xl font-bold text-gray-800">Welcome, {user ? user.name.split(' ')[0] : 'User'}!</h1>
+                    <p className="mt-1 text-gray-500">Here's your expense dashboard.</p>
                 </div>
-            </nav>
-
-            {/* Main Content Area */}
-            <main className="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8">
-                {currentUser.role === 'Employee' ? (
-                    <EmployeeDashboard currentUser={currentUser} />
-                ) : (
-                    <ManagerDashboard currentUser={currentUser} />
-                )}
-            </main>
+                <button 
+                    onClick={handleLogout} 
+                    className="py-2 px-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-md transition"
+                >
+                    Logout
+                </button>
+            </header>
+            
+            <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="md:col-span-1">
+                    <AddExpenseForm />
+                </div>
+                <div className="md:col-span-2">
+                    <ExpenseList /> 
+                </div>
+            </div>
         </div>
     );
 }

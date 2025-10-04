@@ -22,22 +22,25 @@ app.use(express.json());
 // --- AUTHENTICATION ROUTES ---
 
 app.post('/api/auth/signup', async (req, res) => {
-    console.log('Signup request received:', req.body);
     try {
-        const { companyName, adminName, email, password } = req.body;
+        const { companyName, adminName, email, password, country, defaultCurrency } = req.body;
 
+        if (!country || !defaultCurrency) {
+            return res.status(400).json({ message: 'Country and currency are required.' });
+        }
         if (await User.findOne({ email })) {
             return res.status(400).json({ message: 'This email is already in use.' });
         }
-        // if (await Company.countDocuments() > 0) {
-        //     return res.status(400).json({ message: 'A company is already registered. Please sign in.' });
-        // }
         const existingCompany = await Company.findOne({ name: companyName });
         if (existingCompany) {
-            return res.status(400).json({ message: 'A company with fuck this name is already registered.' });
+            return res.status(400).json({ message: 'A company with this name is already registered.' });
         }
 
-        const newCompany = new Company({ name: companyName, defaultCurrency: 'INR' });
+        const newCompany = new Company({ 
+            name: companyName, 
+            country: country,
+            defaultCurrency: defaultCurrency 
+        });
         await newCompany.save();
 
         const salt = await bcrypt.genSalt(10);
@@ -60,7 +63,6 @@ app.post('/api/auth/signup', async (req, res) => {
 });
 
 app.post('/api/auth/signin', async (req, res) => {
-    console.log('Signin request received:', req.body);
     try {
         const { email, password } = req.body;
         const user = await User.findOne({ email });
@@ -74,13 +76,52 @@ app.post('/api/auth/signin', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
         
-        // Don't send the password back to the frontend
-        const userToReturn = { _id: user._id, name: user.name, email: user.email, role: user.role };
+        const userToReturn = { _id: user._id, name: user.name, email: user.email, role: user.role, company_id: user.company_id };
         res.status(200).json({ message: 'Login successful', user: userToReturn });
 
     } catch (err) {
         console.error("SIGNIN ERROR:", err);
         res.status(500).json({ message: 'Server error during signin.' });
+    }
+});
+
+// --- EXPENSE ROUTES ---
+
+app.post('/api/expenses', async (req, res) => {
+    try {
+        const { description, amount, category, userId, companyId } = req.body;
+
+        if (!description || !amount || !userId || !companyId) {
+            return res.status(400).json({ message: 'Please provide all required fields.' });
+        }
+
+        const newExpense = new Expense({
+            description,
+            amount,
+            category,
+            user_id: userId,
+            company_id: companyId,
+        });
+
+        await newExpense.save();
+        res.status(201).json({ message: 'Expense created successfully', expense: newExpense });
+    } catch (err) {
+        console.error("EXPENSE CREATION ERROR:", err);
+        res.status(500).json({ message: 'Server error during expense creation.' });
+    }
+});
+
+app.get('/api/expenses/:userId', async (req, res) => {
+    try {
+        const expenses = await Expense.find({ user_id: req.params.userId }).sort({ createdAt: -1 });
+        
+        if (!expenses) {
+            return res.status(404).json({ message: 'No expenses found for this user.' });
+        }
+        res.status(200).json(expenses);
+    } catch (err) {
+        console.error("FETCH EXPENSES ERROR:", err);
+        res.status(500).json({ message: 'Server error while fetching expenses.' });
     }
 });
 

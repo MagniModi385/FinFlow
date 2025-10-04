@@ -1,52 +1,37 @@
-import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import SigninPage from './pages/SigninPage';
+// src/App.jsx
+
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import SignupPage from './pages/SignupPage';
+import SigninPage from './pages/SigninPage';
 import DashboardPage from './pages/DashboardPage';
 
-function ProtectedRoute({ user, children }) {
-  if (!user) {
-    return <Navigate to="/signin" replace />;
-  }
-  return children;
-}
-
-function PublicRoute({ user, children }) {
-    if (user) {
-        return <Navigate to="/dashboard" replace />;
-    }
-    return children;
+// A wrapper to protect routes that require authentication
+function PrivateRoute({ children }) {
+    const { user } = useAuth();
+    return user ? children : <Navigate to="/signin" />;
 }
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-            path="/signin"
-            element={<PublicRoute user={currentUser}><SigninPage onLogin={setCurrentUser} /></PublicRoute>}
-        />
-        <Route
-            path="/signup"
-            element={<PublicRoute user={currentUser}><SignupPage /></PublicRoute>}
-        />
-        <Route
-            path="/dashboard"
-            element={
-                <ProtectedRoute user={currentUser}>
-                    <DashboardPage currentUser={currentUser} onLogout={() => setCurrentUser(null)} />
-                </ProtectedRoute>
-            }
-        />
-        <Route
-            path="*"
-            element={<Navigate to={currentUser ? "/dashboard" : "/signin"} />}
-        />
-      </Routes>
-    </BrowserRouter>
-  );
+    return (
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    <Route path="/signup" element={<SignupPage />} />
+                    <Route path="/signin" element={<SigninPage />} />
+                    <Route 
+                        path="/dashboard" 
+                        element={
+                            <PrivateRoute>
+                                <DashboardPage />
+                            </PrivateRoute>
+                        } 
+                    />
+                    <Route path="/" element={<Navigate to="/signin" />} />
+                </Routes>
+            </Router>
+        </AuthProvider>
+    );
 }
 
 export default App;

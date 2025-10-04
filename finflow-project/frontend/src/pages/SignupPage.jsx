@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+// src/pages/SignupPage.jsx
+
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api/auth';
+const AUTH_API_URL = 'http://localhost:3001/api/auth';
+const COUNTRIES_API_URL = 'https://restcountries.com/v3.1/all?fields=name,currencies';
 
 function SignupPage() {
     const [formData, setFormData] = useState({
@@ -10,21 +13,75 @@ function SignupPage() {
         adminName: '',
         email: '',
         password: '',
+        country: '',
+        defaultCurrency: '',
     });
+    const [countries, setCountries] = useState([]);
+    const [isLoadingCountries, setIsLoadingCountries] = useState(true);
+    
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchCountries = async () => {
+            try {
+                const response = await axios.get(COUNTRIES_API_URL);
+                const countryData = response.data
+                    .map(country => {
+                        const currencyCode = Object.keys(country.currencies || {})[0];
+                        return currencyCode ? {
+                            name: country.name.common,
+                            currency: currencyCode
+                        } : null;
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => a.name.localeCompare(b.name));
+
+                setCountries(countryData);
+                
+                if (countryData.length > 0) {
+                    const defaultCountry = countryData.find(c => c.name === "India") || countryData[0];
+                    setFormData(prev => ({
+                        ...prev,
+                        country: defaultCountry.name,
+                        defaultCurrency: defaultCountry.currency,
+                    }));
+                }
+            } catch (err) {
+                setError('Failed to load country list.');
+            } finally {
+                setIsLoadingCountries(false);
+            }
+        };
+        fetchCountries();
+    }, []);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+
+        if (name === 'country') {
+            const selectedCountry = countries.find(c => c.name === value);
+            setFormData({
+                ...formData,
+                country: selectedCountry.name,
+                defaultCurrency: selectedCountry.currency,
+            });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
-        axios.post(`${API_URL}/signup`, formData)
+        axios.post(`${AUTH_API_URL}/signup`, formData)
             .then(() => {
-                setSuccess('Company and Admin account created successfully! You can now sign in.');
+                setSuccess('Company and Admin account created successfully! Redirecting to sign in...');
+                setTimeout(() => {
+                    navigate('/signin');
+                }, 2000);
             })
             .catch(err => {
                 setError(err.response?.data?.message || 'Signup failed. Please try again.');
@@ -42,27 +99,45 @@ function SignupPage() {
                     {success ? (
                         <div className="text-center">
                             <p className="text-lg text-green-600 font-semibold">{success}</p>
-                            <Link to="/signin" className="mt-4 inline-block py-3 px-6 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md">
-                                Proceed to Sign In
-                            </Link>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
                                 <label className="text-sm font-semibold text-gray-700 block mb-1">Company Name</label>
-                                <input type="text" name="companyName" onChange={handleChange} className="input-field" required />
+                                <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="input-field" required />
+                            </div>
+                            <div>
+                                <label className="text-sm font-semibold text-gray-700 block mb-1">Country</label>
+                                <select 
+                                    name="country" 
+                                    onChange={handleChange} 
+                                    value={formData.country} 
+                                    className="input-field" 
+                                    required
+                                    disabled={isLoadingCountries}
+                                >
+                                    {isLoadingCountries ? (
+                                        <option>Loading countries...</option>
+                                    ) : (
+                                        countries.map(country => (
+                                            <option key={country.name} value={country.name}>
+                                                {country.name} ({country.currency})
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
                             </div>
                             <div>
                                 <label className="text-sm font-semibold text-gray-700 block mb-1">Your Full Name (Admin)</label>
-                                <input type="text" name="adminName" onChange={handleChange} className="input-field" required />
+                                <input type="text" name="adminName" value={formData.adminName} onChange={handleChange} className="input-field" required />
                             </div>
                             <div>
                                 <label className="text-sm font-semibold text-gray-700 block mb-1">Your Email</label>
-                                <input type="email" name="email" onChange={handleChange} className="input-field" required />
+                                <input type="email" name="email" value={formData.email} onChange={handleChange} className="input-field" required />
                             </div>
                             <div>
                                 <label className="text-sm font-semibold text-gray-700 block mb-1">Password</label>
-                                <input type="password" name="password" onChange={handleChange} className="input-field" required />
+                                <input type="password" name="password" value={formData.password} onChange={handleChange} className="input-field" required />
                             </div>
                             {error && <p className="text-sm text-red-600 text-center font-medium">{error}</p>}
                             <button type="submit" className="w-full py-3 mt-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition">Create Account</button>
