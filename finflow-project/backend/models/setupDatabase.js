@@ -54,5 +54,5 @@ const seedDatabase = async () => {
         console.log('Disconnected from MongoDB.');
     }
 };
-
+//database error has been solved 
 seedDatabase();
